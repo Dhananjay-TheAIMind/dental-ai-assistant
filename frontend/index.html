@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DentAI X-ray Assistant</title>
+<style>
+:root{--bg:#f3f6f9;--card:#fff;--ink:#14202e;--mute:#5d6d7e;--line:#dbe3ec;--brand:#0f766e;--brandd:#0b5a54;--warnbg:#fff4e0;--warnink:#7a4a00;--bad:#b42318}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{background:#0c1f2c;color:#fff;padding:12px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+header h1{font-size:18px;margin:0;font-weight:650}
+header .sub{color:#9fb4c4;font-size:13px}
+.status{margin-left:auto;font-size:13px;display:flex;align-items:center;gap:6px}
+.dot{width:9px;height:9px;border-radius:50%;background:#94a3b8}
+.dot.ok{background:#22c55e}.dot.bad{background:#ef4444}
+.notice{background:var(--warnbg);color:var(--warnink);padding:8px 20px;font-size:13px;border-bottom:1px solid #f0d9ae}
+.wrap{max-width:1300px;margin:0 auto;padding:16px;display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:16px;align-items:start}
+@media(max-width:920px){.wrap{grid-template-columns:1fr}}
+.col{display:flex;flex-direction:column;gap:16px;min-width:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.card h2{margin:0 0 10px;font-size:16px}
+.drop{border:2px dashed #aebdcc;border-radius:12px;padding:38px 16px;text-align:center;color:var(--mute);cursor:pointer;background:#fafcfe}
+.drop:hover,.drop.over{border-color:var(--brand);background:#f0faf8}
+.drop b{color:var(--ink)}
+.btn{background:var(--brand);color:#fff;border:0;border-radius:8px;padding:9px 16px;font:inherit;font-weight:600;cursor:pointer}
+.btn:hover{background:var(--brandd)}
+.btn:disabled{background:#a9bcc0;cursor:not-allowed}
+.btn.ghost{background:#fff;color:var(--brand);border:1px solid var(--brand)}
+.btn.ghost:hover{background:#f0faf8}
+.controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0}
+.controls input[type=range]{flex:1;min-width:140px;accent-color:var(--brand)}
+.hint{font-size:12px;color:var(--mute)}
+.viewer{background:#05090d;border-radius:10px;text-align:center;padding:6px}
+.stage{position:relative;display:inline-block;max-width:100%;line-height:0}
+.stage img{max-width:100%;max-height:66vh;width:auto;height:auto;display:block}
+.ov{position:absolute;inset:0}
+.box{position:absolute;border:3px solid;border-radius:3px;cursor:pointer;transition:opacity .15s}
+.box .tag{position:absolute;top:0;left:0;color:#fff;font:700 12px/1 system-ui;padding:3px 5px;border-radius:0 0 4px 0}
+.ov.has-active .box:not(.active){opacity:.35}
+.box.active{box-shadow:0 0 0 3px rgba(255,255,255,.85);z-index:5}
+.busy{position:absolute;inset:0;background:rgba(5,9,13,.6);color:#fff;display:none;align-items:center;justify-content:center;font-weight:600;line-height:1.4}
+.busy.on{display:flex}
+.summary{margin:12px 0 6px;font-weight:600}
+.rows{display:flex;flex-direction:column;gap:6px}
+.row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer}
+.row:hover,.row.active{border-color:var(--brand);background:#f0faf8}
+.chip{width:12px;height:12px;border-radius:3px}
+.bar{height:6px;background:#e6edf3;border-radius:3px;overflow:hidden;margin-top:4px}
+.bar i{display:block;height:100%;background:var(--brand)}
+.low{font-size:11px;background:var(--warnbg);color:var(--warnink);padding:1px 6px;border-radius:10px;margin-left:6px;font-weight:600}
+.warn{background:var(--warnbg);color:var(--warnink);border:1px solid #f0d9ae;border-radius:8px;padding:8px 12px;margin-top:10px;font-size:14px}
+.warn ul{margin:4px 0 0 18px;padding:0}
+.err{background:#fdecea;color:var(--bad);border:1px solid #f5c2bd;border-radius:8px;padding:8px 12px;margin-top:10px;display:none}
+.report{margin-top:12px;font-size:14.5px}
+.report h4{margin:14px 0 4px;font-size:15px;color:var(--brandd)}
+.report p{margin:6px 0}.report ul{margin:6px 0 6px 20px;padding:0}
+.report table{border-collapse:collapse;width:100%;margin:8px 0;font-size:13.5px}
+.report th,.report td{border:1px solid var(--line);padding:5px 8px;text-align:left;vertical-align:top}
+.report th{background:#f0f4f8}
+.empty{color:var(--mute);font-size:14px}
+.chat{display:flex;flex-direction:column;gap:8px;max-height:340px;overflow:auto;padding:4px 2px;margin-bottom:10px}
+.msg{padding:8px 12px;border-radius:10px;max-width:92%;font-size:14.5px}
+.msg p{margin:4px 0}.msg ul{margin:4px 0 4px 18px;padding:0}
+.msg.user{align-self:flex-end;background:var(--brand);color:#fff}
+.msg.bot{align-self:flex-start;background:#eef3f7}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.chips button{border:1px solid var(--line);background:#fff;border-radius:16px;padding:4px 10px;font:inherit;font-size:13px;cursor:pointer;color:var(--ink)}
+.chips button:hover{border-color:var(--brand);color:var(--brandd)}
+.ask{display:flex;gap:8px}
+.ask input{flex:1;border:1px solid #b8c6d3;border-radius:8px;padding:9px 12px;font:inherit}
+.row2{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+footer{max-width:1300px;margin:0 auto;padding:4px 16px 24px;color:var(--mute);font-size:12.5px}
+@media print{header,.notice,.drop,.controls,.chatcard,.row2,.chips,#changeBtn,footer .hide{display:none!important}.wrap{display:block}.card{border:0;padding:0;margin-bottom:12px}.viewer{background:#fff}.ov.has-active .box:not(.active){opacity:1}}
+</style>
+</head>
+<body>
+<header>
+  <h1>DentAI</h1>
+  <span class="sub">Panoramic X-ray decision support for dentists</span>
+  <span class="status"><span class="dot" id="dot"></span><span id="stat">Checking server...</span></span>
+</header>
+<div class="notice"><b>Decision-support prototype.</b> Not a medical device and not a diagnosis. Every finding must be confirmed by a qualified dentist.</div>
+
+<div class="wrap">
+  <div class="col">
+    <section class="card">
+      <h2>1. Upload a panoramic X-ray</h2>
+      <div id="drop" class="drop" tabindex="0" role="button" aria-label="Upload an X-ray image">
+        <b>Click to choose</b> or drag and drop an X-ray here<br><span class="hint">JPG or PNG, up to 15 MB</span>
+      </div>
+      <input id="file" type="file" accept="image/png,image/jpeg" hidden>
+      <div id="work" hidden>
+        <div class="controls">
+          <label for="sens"><b>Sensitivity</b></label>
+          <span class="hint">More findings</span>
+          <input id="sens" type="range" min="10" max="60" step="5" value="25">
+          <span class="hint">Fewer false alarms</span>
+          <span class="hint">min. confidence <b id="sensv">25%</b></span>
+        </div>
+        <div class="viewer">
+          <div class="stage" id="stage">
+            <img id="img" alt="Uploaded dental X-ray">
+            <div class="ov" id="ov"></div>
+            <div class="busy" id="busy">Analyzing X-ray...</div>
+          </div>
+        </div>
+        <div class="row2"><button class="btn ghost" id="changeBtn" type="button">Choose another image</button></div>
+        <div id="err" class="err" role="alert"></div>
+        <div class="summary" id="summary"></div>
+        <div class="rows" id="rows"></div>
+        <div id="warns"></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="col">
+    <section class="card">
+      <h2>2. Report</h2>
+      <button class="btn" id="repBtn" type="button" disabled>Generate report</button>
+      <div class="report" id="report"><p class="empty">Upload an X-ray first, then generate a written summary of the findings.</p></div>
+      <div class="row2" id="repActions" hidden>
+        <button class="btn ghost" id="copyBtn" type="button">Copy text</button>
+        <button class="btn ghost" id="printBtn" type="button">Print / Save as PDF</button>
+      </div>
+    </section>
+    <section class="card chatcard">
+      <h2>3. Ask the assistant</h2>
+      <div class="chat" id="chat" aria-live="polite">
+        <div class="msg bot"><p>Ask me about the findings, treatment options or follow-up. I answer dental questions only.</p></div>
+      </div>
+      <div class="chips" id="chips"></div>
+      <form class="ask" id="ask">
+        <input id="q" type="text" placeholder="Type a dental question..." autocomplete="off" aria-label="Your question">
+        <button class="btn" type="submit">Send</button>
+      </form>
+    </section>
+  </div>
+</div>
+<footer>Model trained on the DENTEX dataset (CC BY-NC-SA 4.0) - for research and demonstration only. On held-out X-rays it finds roughly 6 in 10 marked problems and about half of its flags are real, so it will miss some problems and raise false alarms.</footer>
+
+<script>
+const API = "http://127.0.0.1:8000";
+const COLORS = {"Caries":"#dc2626","Deep Caries":"#9333ea","Impacted":"#2563eb","Periapical Lesion":"#d97706"};
+const LOW = 0.40;
+const $ = id => document.getElementById(id);
+let file = null, xray = null, history = [], reportText = "";
+
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function inline(s){return esc(s).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>");}
+function md(text){
+  const out = []; let list = false, table = [];
+  const endList = () => { if(list){ out.push("</ul>"); list = false; } };
+  const endTable = () => {
+    if(!table.length) return;
+    const rows = table.filter(r => !/^\s*\|?\s*:?-{2,}/.test(r))
+      .map(r => r.trim().replace(/^\||\|$/g,"").split("|").map(c => inline(c.trim())));
+    if(rows.length){
+      out.push("<table><thead><tr>" + rows[0].map(c => "<th>"+c+"</th>").join("") + "</tr></thead><tbody>" +
+        rows.slice(1).map(r => "<tr>"+r.map(c => "<td>"+c+"</td>").join("")+"</tr>").join("") + "</tbody></table>");
+    }
+    table = [];
+  };
+  for(const raw of String(text).split("\n")){
+    const l = raw.trimEnd(); let m;
+    if(/^\s*\|/.test(l)){ endList(); table.push(l); continue; }
+    endTable();
+    if((m = l.match(/^#{1,4}\s+(.*)/))){ endList(); out.push("<h4>"+inline(m[1])+"</h4>"); }
+    else if((m = l.match(/^\s*[-*]\s+(.*)/))){ if(!list){ out.push("<ul>"); list = true; } out.push("<li>"+inline(m[1])+"</li>"); }
+    else if(!l.trim()){ endList(); }
+    else { endList(); out.push("<p>"+inline(l)+"</p>"); }
+  }
+  endList(); endTable();
+  return out.join("");
+}
+
+function showErr(msg){ const e = $("err"); e.textContent = msg; e.style.display = msg ? "block" : "none"; }
+
+async function checkServer(){
+  try{
+    const r = await fetch(API + "/health");
+    if(!r.ok) throw 0;
+    $("dot").className = "dot ok"; $("stat").textContent = "Server connected";
+  }catch(e){
+    $("dot").className = "dot bad"; $("stat").textContent = "Server offline - start the backend";
+  }
+}
+
+function pick(f){
+  if(!f) return;
+  if(!/^image\/(png|jpeg)$/.test(f.type)){ alert("Please choose a JPG or PNG image."); return; }
+  if(f.size > 15*1024*1024){ alert("Image is larger than 15 MB."); return; }
+  file = f; xray = null;
+  $("img").src = URL.createObjectURL(f);
+  $("drop").hidden = true; $("work").hidden = false;
+  clearResults(); analyze();
+}
+
+function clearResults(){
+  $("ov").innerHTML = ""; $("ov").classList.remove("has-active");
+  $("rows").innerHTML = ""; $("summary").textContent = ""; $("warns").innerHTML = "";
+  showErr(""); resetReport();
+}
+function resetReport(){
+  reportText = "";
+  $("report").innerHTML = '<p class="empty">' + (xray ? "Findings changed - generate the report again." : "Upload an X-ray first, then generate a written summary of the findings.") + "</p>";
+  $("repActions").hidden = true; $("repBtn").disabled = !xray;
+}
+
+async function analyze(){
+  if(!file) return;
+  clearResults();
+  $("busy").classList.add("on");
+  try{
+    const fd = new FormData(); fd.append("file", file);
+    const r = await fetch(API + "/detect?conf=" + ($("sens").value/100), {method:"POST", body:fd});
+    if(!r.ok){ const j = await r.json().catch(() => ({})); throw new Error(j.detail || ("Server error " + r.status)); }
+    xray = await r.json();
+    render(); resetReport();
+  }catch(e){
+    xray = null;
+    showErr(String(e.message).indexOf("Failed to fetch") >= 0 ? "Cannot reach the server. Start the backend and reload." : e.message);
+  }finally{
+    $("busy").classList.remove("on");
+  }
+}
+
+function render(){
+  const W = xray.image_width, H = xray.image_height, ov = $("ov"), rows = $("rows");
+  ov.innerHTML = ""; rows.innerHTML = "";
+  xray.detections.forEach(d => {
+    const col = COLORS[d.label] || "#0f766e", b = d.box;
+    const el = document.createElement("div");
+    el.className = "box"; el.dataset.id = d.id;
+    el.style.cssText = "left:"+(b.x/W*100)+"%;top:"+(b.y/H*100)+"%;width:"+(b.w/W*100)+"%;height:"+(b.h/H*100)+"%;border-color:"+col;
+    el.title = d.label + " " + Math.round(d.confidence*100) + "%";
+    el.innerHTML = '<span class="tag" style="background:'+col+'">#'+d.id+'</span>';
+    el.onclick = () => toggle(d.id);
+    ov.appendChild(el);
+    const pct = Math.round(d.confidence*100);
+    const row = document.createElement("div");
+    row.className = "row"; row.dataset.id = d.id;
+    row.innerHTML = '<span class="chip" style="background:'+col+'"></span>' +
+      '<div><b>#'+d.id+' '+esc(d.label)+'</b>'+(d.confidence < LOW ? '<span class="low">low confidence</span>' : '')+
+      '<div class="bar"><i style="width:'+pct+'%"></i></div></div><b>'+pct+'%</b>';
+    row.onclick = () => toggle(d.id);
+    rows.appendChild(row);
+  });
+  const n = xray.detections.length;
+  $("summary").textContent = n ? (n + " possible finding" + (n > 1 ? "s" : "") + ": " +
+    Object.entries(xray.counts).map(([k,v]) => v + " " + k).join(" / ")) : "No suspicious areas found at this sensitivity.";
+  $("warns").innerHTML = xray.warnings.length ? '<div class="warn"><b>Please review manually</b><ul>' +
+    xray.warnings.map(w => "<li>" + esc(w) + "</li>").join("") + "</ul></div>" : "";
+}
+
+function toggle(id){
+  const ov = $("ov"), cur = ov.querySelector(".box.active"), same = cur && cur.dataset.id == id;
+  document.querySelectorAll(".box.active,.row.active").forEach(e => e.classList.remove("active"));
+  ov.classList.toggle("has-active", !same);
+  if(!same) document.querySelectorAll('[data-id="'+id+'"]').forEach(e => e.classList.add("active"));
+}
+
+function xrayPayload(){
+  return xray ? {image_width:xray.image_width, image_height:xray.image_height, detections:xray.detections, warnings:xray.warnings} : null;
+}
+
+async function genReport(){
+  if(!xray) return;
+  $("repBtn").disabled = true;
+  $("report").innerHTML = '<p class="empty">Writing report... (about 10 seconds)</p>';
+  try{
+    const r = await fetch(API + "/report_xray", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(xrayPayload())});
+    const j = await r.json();
+    if(!r.ok) throw new Error(j.detail || ("Server error " + r.status));
+    reportText = j.report;
+    $("report").innerHTML = md(j.report) + '<p class="hint">' + esc(j.disclaimer) + "</p>";
+    $("repActions").hidden = false;
+  }catch(e){
+    $("report").innerHTML = '<p class="empty" style="color:#b42318">Could not create the report: ' + esc(e.message) + "</p>";
+  }finally{
+    $("repBtn").disabled = false;
+  }
+}
+
+function addMsg(role, html){
+  const m = document.createElement("div");
+  m.className = "msg " + (role === "user" ? "user" : "bot"); m.innerHTML = html;
+  $("chat").appendChild(m); $("chat").scrollTop = $("chat").scrollHeight; return m;
+}
+
+async function send(q){
+  q = q.trim(); if(!q) return;
+  addMsg("user", "<p>" + esc(q) + "</p>");
+  const wait = addMsg("bot", '<p class="empty">Thinking...</p>');
+  try{
+    const r = await fetch(API + "/chat", {method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({question:q, history:history.slice(-10), xray:xrayPayload()})});
+    const j = await r.json();
+    if(!r.ok) throw new Error(j.detail || ("Server error " + r.status));
+    wait.innerHTML = md(j.answer);
+    history.push({role:"user", content:q}, {role:"assistant", content:j.answer});
+  }catch(e){
+    wait.innerHTML = '<p style="color:#b42318">Sorry, that failed: ' + esc(e.message) + "</p>";
+  }
+  $("chat").scrollTop = $("chat").scrollHeight;
+}
+
+["What are the treatment options for caries?","What does a periapical lesion mean?","Should I order further imaging?","Explain these findings in simple words for the patient"].forEach(t => {
+  const b = document.createElement("button"); b.type = "button"; b.textContent = t;
+  b.onclick = () => send(t); $("chips").appendChild(b);
+});
+
+$("drop").onclick = () => $("file").click();
+$("drop").onkeydown = e => { if(e.key === "Enter" || e.key === " "){ e.preventDefault(); $("file").click(); } };
+$("file").onchange = e => pick(e.target.files[0]);
+["dragenter","dragover"].forEach(t => $("drop").addEventListener(t, e => { e.preventDefault(); $("drop").classList.add("over"); }));
+["dragleave","drop"].forEach(t => $("drop").addEventListener(t, e => { e.preventDefault(); $("drop").classList.remove("over"); }));
+$("drop").addEventListener("drop", e => pick(e.dataTransfer.files[0]));
+$("changeBtn").onclick = () => { $("file").value = ""; $("file").click(); };
+$("sens").oninput = () => { $("sensv").textContent = $("sens").value + "%"; };
+$("sens").onchange = () => analyze();
+$("repBtn").onclick = genReport;
+$("copyBtn").onclick = async () => { try{ await navigator.clipboard.writeText(reportText); $("copyBtn").textContent = "Copied"; setTimeout(() => $("copyBtn").textContent = "Copy text", 1500); }catch(e){ alert("Copy failed - select the text manually."); } };
+$("printBtn").onclick = () => window.print();
+$("ask").onsubmit = e => { e.preventDefault(); const v = $("q").value; $("q").value = ""; send(v); };
+checkServer();
+</script>
+</body>
+</html>

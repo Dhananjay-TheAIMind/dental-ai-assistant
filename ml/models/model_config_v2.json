@@ -1,0 +1,1 @@
+{"arch": "efficientnet_b0", "size": 224, "cavity_boost": 2, "classes": ["Cavity", "Fillings", "Impacted Tooth", "Implant", "Normal"]}
